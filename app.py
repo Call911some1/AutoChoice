@@ -6,6 +6,7 @@ import word_cloud_utils as wc_utils
 import matplotlib.pyplot as plt
 import seaborn as sns
 import matplotlib
+import plotly.express as px
 from matplotlib.ticker import FuncFormatter
 matplotlib.use('Agg')
 
@@ -132,34 +133,45 @@ def plot_price_distribution(df, brand, model):
     if df_filtered.empty or len(df_filtered) < 5:
         st.write("Недостаточно данных для построения графика распределения цен.")
         return
-    plt.figure(figsize=(10, 6))
-    sns.histplot(df_filtered['price'], kde=True, bins=20)
-    plt.title(f'Распределение цен для {brand} {model}')
-    plt.xlabel('Цена (руб.)')
-    plt.ylabel('Количество объявлений')
-    plt.gca().xaxis.set_major_formatter(FuncFormatter(price_formatter))
-    plt.tight_layout()
-    st.pyplot(plt.gcf())
-    plt.close()
+    fig = px.histogram(
+        df_filtered,
+        x='price',
+        nbins=20,
+        title=f'Распределение цен для {brand} {model}',
+        color_discrete_sequence=['#636EFA'],  # Вы можете выбрать другую цветовую палитру
+    )
+    fig.update_traces(marker_line_width=1, marker_line_color='black')
+    fig.update_layout(
+        xaxis_title='Цена (руб.)',
+        yaxis_title='Количество объявлений',
+        xaxis_tickformat=',.0f',
+    )
+    st.plotly_chart(fig)
 
 def plot_price_vs_mileage(df, brand, model):
     df_filtered = df[(df['brand'] == brand) & (df['model'] == model)]
     if df_filtered.empty or len(df_filtered) < 5:
         st.write("Недостаточно данных для построения графика зависимости цены от пробега.")
         return
-    plt.figure(figsize=(10, 6))
-    sns.scatterplot(x='mileage', y='price', data=df_filtered)
-    plt.title(f'Зависимость цены от пробега для {brand} {model}')
-    plt.xlabel('Пробег (км)')
-    plt.ylabel('Цена (руб.)')
-    plt.gca().xaxis.set_major_formatter(FuncFormatter(mileage_formatter))
-    plt.gca().yaxis.set_major_formatter(FuncFormatter(price_formatter))
-    plt.tight_layout()
-    st.pyplot(plt.gcf())
-    plt.close()
+    fig = px.scatter(
+        df_filtered,
+        x='mileage',
+        y='price',
+        title=f'Зависимость цены от пробега для {brand} {model}',
+        color='year',  # Цвет точек зависит от года выпуска
+        color_continuous_scale=px.colors.sequential.Viridis,
+    )
+    fig.update_layout(
+        xaxis_title='Пробег (км)',
+        yaxis_title='Цена (руб.)',
+        xaxis_tickformat=',.0f',
+        yaxis_tickformat=',.0f',
+    )
+    st.plotly_chart(fig)
+
 
 # Функция для поиска похожих автомобилей с пошаговым расширением критериев
-# Функция для поиска похожих автомобилей с учётом цены, пробега и года выпуска
+# (оставляем без изменений)
 def find_similar_cars(user_input, df_original):
     predicted_price = user_input.get('predicted_price', None)
     if predicted_price is None:
@@ -249,38 +261,6 @@ def find_similar_cars(user_input, df_original):
     filtered_cars['price_diff'] = abs(filtered_cars['price'] - predicted_price)
     return filtered_cars.sort_values(by='price_diff').head(5)
 
-# def find_similar_cars(user_input, df_original):
-#     user_brand = user_input['brand']
-#     user_model = user_input['model']
-#     user_year = user_input['year']
-#     user_mileage = user_input['mileage']
-
-#     # Список критериев с постепенным ослаблением
-#     criteria_list = [
-#         {'year_diff': 0, 'mileage_diff': 10000},
-#         {'year_diff': 1, 'mileage_diff': 20000},
-#         {'year_diff': 2, 'mileage_diff': 50000},
-#         {'year_diff': 5, 'mileage_diff': 100000},
-#         {'year_diff': 10, 'mileage_diff': 200000},
-#     ]
-
-#     for criteria in criteria_list:
-#         filtered_cars = df_original[
-#             (df_original['brand'] == user_brand) &
-#             (df_original['model'] == user_model) &
-#             (abs(df_original['year'] - user_year) <= criteria['year_diff']) &
-#             (abs(df_original['mileage'] - user_mileage) <= criteria['mileage_diff'])
-#         ]
-#         if len(filtered_cars) >= 5:
-#             return filtered_cars.sort_values(by='price').head(5)
-
-#     # Если недостаточно объявлений, ослабляем критерии до совпадения только марки и модели
-#     filtered_cars = df_original[
-#         (df_original['brand'] == user_brand) &
-#         (df_original['model'] == user_model)
-#     ]
-#     return filtered_cars.sort_values(by='price').head(5)
-
 # Основная функция
 def main():
     st.title("Оценка стоимости автомобиля")
@@ -307,8 +287,14 @@ def main():
 
         year = st.number_input("Год выпуска", min_value=int(df_model['year'].min()), max_value=int(df_model['year'].max()), step=1)
         mileage = st.number_input("Пробег (км)", min_value=0, max_value=int(df_model['mileage'].max()), step=1000)
-        volume_engine = st.number_input("Объем двигателя (л)", min_value=float(df_model['volume_engine'].min()), max_value=float(df_model['volume_engine'].max()), step=0.1)
-        power = st.number_input("Мощность двигателя (л.с.)", min_value=int(df_model['power'].min()), max_value=int(df_model['power'].max()), step=10)
+
+        # Объёмы двигателя
+        available_volumes = sorted(df_model['volume_engine'].round(1).unique())
+        volume_engine = st.selectbox("Объем двигателя (л)", options=available_volumes)
+
+        # Мощность двигателя
+        available_powers = sorted(df_model['power'].astype(int).unique())
+        power = st.selectbox("Мощность двигателя (л.с.)", options=available_powers)
 
     with col2:
         transmission_options = sorted(df_model['transmission'].unique())
@@ -360,11 +346,14 @@ def main():
         # Прогнозирование цены
         try:
             predicted_price = pipeline.predict(pd.DataFrame([input_data]))[0]
+            rounded_price = int(round(predicted_price / 10000) * 10000)
             st.markdown(
-                f"<div style='padding: 10px; background-color: #dff0d8; border-radius: 5px;'><h3 style='text-align: center; color: #3c763d;'>Предполагаемая стоимость автомобиля:</h3><h2 style='text-align: center; color: #3c763d;'>{predicted_price:,.2f} руб.</h2></div>",
+                f"<div style='padding: 10px; background-color: #dff0d8; border-radius: 5px;'>"
+                f"<h3 style='text-align: center; color: #3c763d;'>Предполагаемая стоимость автомобиля:</h3>"
+                f"<h2 style='text-align: center; color: #3c763d;'>{rounded_price:,} руб.</h2></div>",
                 unsafe_allow_html=True
             )
-            input_data['predicted_price'] = predicted_price  # Добавляем предсказанную цену в данные пользователя
+            input_data['predicted_price'] = rounded_price  # Добавляем округленную цену в данные пользователя
         except Exception as e:
             st.error(f"Ошибка при прогнозировании цены: {e}")
             return
@@ -381,7 +370,7 @@ def main():
                         with col2:
                             st.image(row['image_url'], width=300)
                     except:
-                        st.write("Изображение недоступно.")
+                            st.write("Изображение недоступно.")
                 else:
                     st.write("Изображение отсутствует.")
                 st.markdown(f"[Ссылка на объявление]({row['listing_url']})")
