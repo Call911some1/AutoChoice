@@ -14,7 +14,7 @@ import mplcyberpunk
 plt.style.use("cyberpunk")
 
 # Загрузка данных отзывов
-@st.cache_data
+@st.cache_data(ttl=1800)
 def load_reviews_data(file_path='final_reviews_cleaned.csv'):
     df_reviews = pd.read_csv(file_path)
     df_reviews['brand'] = df_reviews['brand'].str.lower()
@@ -22,7 +22,7 @@ def load_reviews_data(file_path='final_reviews_cleaned.csv'):
     return df_reviews
 
 # Загрузка данных автомобилей
-@st.cache_data
+@st.cache_data(ttl=1800)
 def load_data(file_path='Cars.csv'):
     df = pd.read_csv(file_path)
     df = process_car_data_1(df)
