@@ -22,35 +22,66 @@ def process_aspects(data):
     
     return aspect_counts
 
-def create_wordcloud(frequency_dict, title, color_map='viridis', max_words=50):
+def create_wordcloud(frequency_dict, title, color_map='viridis', max_words=50, background_color='black'):
     if not frequency_dict:
         return None
     wordcloud = WordCloud(
         width=800,
         height=400,
-        background_color='white',
+        background_color=background_color,  # Тёмный фон
         colormap=color_map,
+        contour_color='white',  # Белая окантовка текста
+        contour_width=1,
         max_words=max_words
     ).generate_from_frequencies(frequency_dict)
     fig, ax = plt.subplots(figsize=(10, 7.5))
     ax.imshow(wordcloud, interpolation='bilinear')
-    ax.set_title(title, fontsize=20)
+    ax.set_title(title, fontsize=20, color='white')  # Белый заголовок
     ax.axis('off')
     plt.tight_layout()
     return fig
 
-# Функции для создания позитивного и негативного облака слов
 def create_positive_wordcloud(aspect_counts, title):
     freq_dict = {aspect: counts['positive'] - counts['negative']
                 for aspect, counts in aspect_counts.items()
                 if counts['positive'] > counts['negative']}
-    return create_wordcloud(freq_dict, title)
+    return create_wordcloud(freq_dict, title, color_map='coolwarm')  # Градиент для позитивных слов
 
 def create_negative_wordcloud(aspect_counts, title):
     freq_dict = {aspect: counts['negative'] - counts['positive']
                 for aspect, counts in aspect_counts.items()
                 if counts['negative'] > counts['positive']}
-    return create_wordcloud(freq_dict, title)
+    return create_wordcloud(freq_dict, title, color_map='Reds')  # Градиент для негативных слов
+
+# def create_wordcloud(frequency_dict, title, color_map='viridis', max_words=50):
+#     if not frequency_dict:
+#         return None
+#     wordcloud = WordCloud(
+#         width=800,
+#         height=400,
+#         background_color='white',
+#         colormap=color_map,
+#         max_words=max_words
+#     ).generate_from_frequencies(frequency_dict)
+#     fig, ax = plt.subplots(figsize=(10, 7.5))
+#     ax.imshow(wordcloud, interpolation='bilinear')
+#     ax.set_title(title, fontsize=20)
+#     ax.axis('off')
+#     plt.tight_layout()
+#     return fig
+
+# # Функции для создания позитивного и негативного облака слов
+# def create_positive_wordcloud(aspect_counts, title):
+#     freq_dict = {aspect: counts['positive'] - counts['negative']
+#                 for aspect, counts in aspect_counts.items()
+#                 if counts['positive'] > counts['negative']}
+#     return create_wordcloud(freq_dict, title)
+
+# def create_negative_wordcloud(aspect_counts, title):
+#     freq_dict = {aspect: counts['negative'] - counts['positive']
+#                 for aspect, counts in aspect_counts.items()
+#                 if counts['negative'] > counts['positive']}
+#     return create_wordcloud(freq_dict, title)
 
 # Функция для отображения распределения оценок
 def show_rating_distribution(data, brand, model):

@@ -6,9 +6,12 @@ import word_cloud_utils as wc_utils
 import matplotlib.pyplot as plt
 import seaborn as sns
 import matplotlib
-import plotly.express as px
 from matplotlib.ticker import FuncFormatter
 matplotlib.use('Agg')
+import mplcyberpunk
+
+# Установка стиля Cyberpunk
+plt.style.use("cyberpunk")
 
 # Загрузка данных отзывов
 @st.cache_data
@@ -133,42 +136,67 @@ def plot_price_distribution(df, brand, model):
     if df_filtered.empty or len(df_filtered) < 5:
         st.write("Недостаточно данных для построения графика распределения цен.")
         return
-    fig = px.histogram(
-        df_filtered,
-        x='price',
-        nbins=20,
-        title=f'Распределение цен для {brand} {model}',
-        color_discrete_sequence=['#636EFA'],  # Вы можете выбрать другую цветовую палитру
-    )
-    fig.update_traces(marker_line_width=1, marker_line_color='black')
-    fig.update_layout(
-        xaxis_title='Цена (руб.)',
-        yaxis_title='Количество объявлений',
-        xaxis_tickformat=',.0f',
-    )
-    st.plotly_chart(fig)
+    plt.figure(figsize=(10, 6))
+    sns.histplot(df_filtered['price'], kde=True, bins=20)
+    plt.title(f'Распределение цен для {brand} {model}')
+    plt.xlabel('Цена (руб.)')
+    plt.ylabel('Количество объявлений')
+    plt.gca().xaxis.set_major_formatter(FuncFormatter(price_formatter))
+    plt.tight_layout()
+    # Добавление Cyberpunk стиля
+    mplcyberpunk.add_glow_effects()
+    st.pyplot(plt.gcf())
+    plt.close()
 
 def plot_price_vs_mileage(df, brand, model):
     df_filtered = df[(df['brand'] == brand) & (df['model'] == model)]
     if df_filtered.empty or len(df_filtered) < 5:
         st.write("Недостаточно данных для построения графика зависимости цены от пробега.")
         return
-    fig = px.scatter(
-        df_filtered,
-        x='mileage',
-        y='price',
-        title=f'Зависимость цены от пробега для {brand} {model}',
-        color='year',  # Цвет точек зависит от года выпуска
-        color_continuous_scale=px.colors.sequential.Viridis,
+    
+    plt.figure(figsize=(10, 6))
+    scatter = plt.scatter(
+        x=df_filtered['mileage'], 
+        y=df_filtered['price'], 
+        c=df_filtered['year'],  # Используем год выпуска для цвета
+        cmap='viridis',         # Палитра для цветового отображения
+        alpha=0.8,              # Прозрачность точек
+        edgecolor='w',          # Белая окантовка для точек
+        s=80                    # Размер точек
     )
-    fig.update_layout(
-        xaxis_title='Пробег (км)',
-        yaxis_title='Цена (руб.)',
-        xaxis_tickformat=',.0f',
-        yaxis_tickformat=',.0f',
-    )
-    st.plotly_chart(fig)
+    
+    plt.colorbar(scatter, label='Год выпуска')  # Добавляем легенду для цветовой шкалы
+    plt.title(f'Зависимость цены от пробега для {brand} {model}')
+    plt.xlabel('Пробег (км)')
+    plt.ylabel('Цена (руб.)')
+    plt.gca().xaxis.set_major_formatter(FuncFormatter(mileage_formatter))
+    plt.gca().yaxis.set_major_formatter(FuncFormatter(price_formatter))
+    plt.tight_layout()
 
+    # Добавляем Cyberpunk стиль
+    mplcyberpunk.add_glow_effects()
+
+    st.pyplot(plt.gcf())
+    plt.close()
+
+
+# def plot_price_vs_mileage(df, brand, model):
+#     df_filtered = df[(df['brand'] == brand) & (df['model'] == model)]
+#     if df_filtered.empty or len(df_filtered) < 5:
+#         st.write("Недостаточно данных для построения графика зависимости цены от пробега.")
+#         return
+#     plt.figure(figsize=(10, 6))
+#     sns.scatterplot(x='mileage', y='price', data=df_filtered)
+#     plt.title(f'Зависимость цены от пробега для {brand} {model}')
+#     plt.xlabel('Пробег (км)')
+#     plt.ylabel('Цена (руб.)')
+#     plt.gca().xaxis.set_major_formatter(FuncFormatter(mileage_formatter))
+#     plt.gca().yaxis.set_major_formatter(FuncFormatter(price_formatter))
+#     plt.tight_layout()
+#     # Добавление Cyberpunk стиля
+#     mplcyberpunk.add_glow_effects()
+#     st.pyplot(plt.gcf())
+#     plt.close()
 
 # Функция для поиска похожих автомобилей с пошаговым расширением критериев
 # (оставляем без изменений)
