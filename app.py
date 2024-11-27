@@ -159,37 +159,127 @@ def plot_price_vs_mileage(df, brand, model):
     plt.close()
 
 # Функция для поиска похожих автомобилей с пошаговым расширением критериев
+# Функция для поиска похожих автомобилей с учётом цены, пробега и года выпуска
 def find_similar_cars(user_input, df_original):
-    user_brand = user_input['brand']
-    user_model = user_input['model']
+    predicted_price = user_input.get('predicted_price', None)
+    if predicted_price is None:
+        st.error("Предсказанная цена отсутствует.")
+        return pd.DataFrame()
+
+    user_brand = user_input['brand'].lower().strip()
+    user_model = user_input['model'].lower().strip()
     user_year = user_input['year']
     user_mileage = user_input['mileage']
 
     # Список критериев с постепенным ослаблением
     criteria_list = [
-        {'year_diff': 0, 'mileage_diff': 10000},
-        {'year_diff': 1, 'mileage_diff': 20000},
-        {'year_diff': 2, 'mileage_diff': 50000},
-        {'year_diff': 5, 'mileage_diff': 100000},
-        {'year_diff': 10, 'mileage_diff': 200000},
+        {
+            'year_diff': 0,
+            'mileage_diff_pct': 0.10,
+            'price_diff_pct': 0.10,
+            'include_older_years': False
+        },
+        {
+            'year_diff': 1,
+            'mileage_diff_pct': 0.15,
+            'price_diff_pct': 0.15,
+            'include_older_years': False
+        },
+        {
+            'year_diff': 2,
+            'mileage_diff_pct': 0.20,
+            'price_diff_pct': 0.20,
+            'include_older_years': False
+        },
+        {
+            'year_diff': 2,
+            'mileage_diff_pct': 0.20,
+            'price_diff_pct': 0.20,
+            'include_older_years': True
+        },
+        {
+            'year_diff': 5,
+            'mileage_diff_pct': 0.30,
+            'price_diff_pct': 0.30,
+            'include_older_years': True
+        },
     ]
 
     for criteria in criteria_list:
+        year_diff = criteria['year_diff']
+        mileage_diff_pct = criteria['mileage_diff_pct']
+        price_diff_pct = criteria['price_diff_pct']
+        include_older_years = criteria['include_older_years']
+
+        mileage_diff = user_mileage * mileage_diff_pct
+        price_diff = predicted_price * price_diff_pct
+
+        # Условие по году выпуска
+        if include_older_years:
+            year_condition = (
+                (df_original['year'] >= user_year - year_diff) &
+                (df_original['year'] <= user_year + year_diff)
+            )
+        else:
+            year_condition = (
+                (df_original['year'] >= user_year) &
+                (df_original['year'] <= user_year + year_diff)
+            )
+
         filtered_cars = df_original[
-            (df_original['brand'] == user_brand) &
-            (df_original['model'] == user_model) &
-            (abs(df_original['year'] - user_year) <= criteria['year_diff']) &
-            (abs(df_original['mileage'] - user_mileage) <= criteria['mileage_diff'])
+            (df_original['brand'].str.lower() == user_brand) &
+            (df_original['model'].str.lower() == user_model) &
+            year_condition &
+            (abs(df_original['mileage'] - user_mileage) <= mileage_diff) &
+            (abs(df_original['price'] - predicted_price) <= price_diff)
         ]
+
         if len(filtered_cars) >= 5:
             return filtered_cars.sort_values(by='price').head(5)
 
-    # Если недостаточно объявлений, ослабляем критерии до совпадения только марки и модели
+    # Если недостаточно объявлений, возвращаем наиболее близкие по цене автомобили
     filtered_cars = df_original[
-        (df_original['brand'] == user_brand) &
-        (df_original['model'] == user_model)
-    ]
-    return filtered_cars.sort_values(by='price').head(5)
+        (df_original['brand'].str.lower() == user_brand) &
+        (df_original['model'].str.lower() == user_model)
+    ].copy()
+
+    if filtered_cars.empty:
+        return pd.DataFrame()
+
+    filtered_cars['price_diff'] = abs(filtered_cars['price'] - predicted_price)
+    return filtered_cars.sort_values(by='price_diff').head(5)
+
+# def find_similar_cars(user_input, df_original):
+#     user_brand = user_input['brand']
+#     user_model = user_input['model']
+#     user_year = user_input['year']
+#     user_mileage = user_input['mileage']
+
+#     # Список критериев с постепенным ослаблением
+#     criteria_list = [
+#         {'year_diff': 0, 'mileage_diff': 10000},
+#         {'year_diff': 1, 'mileage_diff': 20000},
+#         {'year_diff': 2, 'mileage_diff': 50000},
+#         {'year_diff': 5, 'mileage_diff': 100000},
+#         {'year_diff': 10, 'mileage_diff': 200000},
+#     ]
+
+#     for criteria in criteria_list:
+#         filtered_cars = df_original[
+#             (df_original['brand'] == user_brand) &
+#             (df_original['model'] == user_model) &
+#             (abs(df_original['year'] - user_year) <= criteria['year_diff']) &
+#             (abs(df_original['mileage'] - user_mileage) <= criteria['mileage_diff'])
+#         ]
+#         if len(filtered_cars) >= 5:
+#             return filtered_cars.sort_values(by='price').head(5)
+
+#     # Если недостаточно объявлений, ослабляем критерии до совпадения только марки и модели
+#     filtered_cars = df_original[
+#         (df_original['brand'] == user_brand) &
+#         (df_original['model'] == user_model)
+#     ]
+#     return filtered_cars.sort_values(by='price').head(5)
 
 # Основная функция
 def main():
